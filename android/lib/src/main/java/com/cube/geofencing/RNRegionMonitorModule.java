@@ -44,10 +44,10 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 	{
 		try
 		{
-			Log.d(TAG, "addCircularRegion: " + requestId);
-
 			double latitude = location.getDouble("latitude");
 			double longitude = location.getDouble("longitude");
+			Log.d(TAG, "addCircularRegion: " + requestId + ", " + latitude + ", " + longitude + ", " + radiusMetres);
+
 			final MonitoredRegion region = new MonitoredRegion(requestId, latitude, longitude, radiusMetres);
 			Geofence geofence = region.createGeofence();
 			geofenceManager.addGeofences(Collections.singletonList(geofence), new ResultCallbacks<Status>()
@@ -72,7 +72,8 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 		}
 		catch (Exception e)
 		{
-			promise.reject("addCircularRegion exeption", e);
+			Log.e(TAG, "addCircularRegion exception", e);
+			promise.reject("addCircularRegion exception", e);
 		}
 	}
 
@@ -103,7 +104,8 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 		}
 		catch (Exception e)
 		{
-			promise.reject("clearRegions exeption", e);
+			Log.e(TAG, "clearRegions exception", e);
+			promise.reject("clearRegions exception", e);
 		}
 	}
 
@@ -150,7 +152,8 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 		}
 		catch (Exception e)
 		{
-			promise.reject("removeCircularRegion exeption", e);
+			Log.e(TAG, "removeCircularRegion exception", e);
+			promise.reject("removeCircularRegion exception", e);
 		}
 	}
 }
