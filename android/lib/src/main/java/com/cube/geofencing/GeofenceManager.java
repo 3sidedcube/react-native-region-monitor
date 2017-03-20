@@ -67,7 +67,7 @@ public class GeofenceManager implements GoogleApiClient.ConnectionCallbacks, Goo
 	public void addGeofences(@NonNull List<Geofence> geofences, @NonNull ResultCallbacks<Status> callback) throws InterruptedException
 	{
 		countDownLatch.await();
-		GeofencingRequest request = new GeofencingRequest.Builder().addGeofences(geofences).setInitialTrigger(Geofence.GEOFENCE_TRANSITION_ENTER).build();
+		GeofencingRequest request = new GeofencingRequest.Builder().addGeofences(geofences).setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER).build();
 		LocationServices.GeofencingApi.addGeofences(googleApiClient, request, geofencePendingIntent).setResultCallback(callback);
 	}
 
