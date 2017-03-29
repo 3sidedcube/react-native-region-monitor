@@ -44,7 +44,7 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 
 		if (!intent.getBooleanExtra("launchHeadless", false))
 		{
-			showNotification(intent);
+			showNotification(intent, geofencingEvent);
 			return null;
 		}
 
@@ -80,7 +80,7 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		return new HeadlessJsTaskConfig(RNRegionMonitorModule.TRANSITION_TASK_NAME, jsArgs, 0, true);
 	}
 
-	private void showNotification(Intent intent)
+	private void showNotification(Intent intent, GeofencingEvent geofencingEvent)
 	{
 
 		String packageName = getApplicationContext().getPackageName();
@@ -95,7 +95,8 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 			}
 		}
 
-		int notificationID = (int)System.currentTimeMillis();
+		String eventId = geofencingEvent.getTriggeringGeofences().get(0).getRequestId();
+		int notificationID = Integer.parseInt(eventId);
 
 		Intent notificationIntent = new Intent(getApplicationContext(), RNRegionTransitionService.class);
 		notificationIntent.putExtras(intent);
@@ -124,6 +125,7 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		                                                                                   .setAutoCancel(false)
 		                                                                                   .setContentText("Would you like to check in to this session?")
 		                                                                                   .setSmallIcon(smallIconResId)
+		                                                                                   .setContentIntent(pendingIntent)
 		                                                                                   .addAction(0, "Yes", yesPendingActionIntent)
 		                                                                                   .addAction(0, "No", noPendingActionIntent)
 		                                                                                   .setVibrate(new long[]{0, 300L})
