@@ -1,10 +1,12 @@
 package com.cube.geofencing;
 
-import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -85,6 +87,8 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 
 		String packageName = getApplicationContext().getPackageName();
 		int smallIconResId = getApplicationContext().getResources().getIdentifier("ic_notification", "mipmap", packageName);
+		int largeIconResId = getApplicationContext().getResources().getIdentifier("ic_launcher", "mipmap", packageName);
+
 		if (smallIconResId == 0)
 		{
 			smallIconResId = getApplicationContext().getResources().getIdentifier("ic_launcher", "mipmap", packageName);
@@ -94,6 +98,8 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 				smallIconResId = android.R.drawable.ic_dialog_info;
 			}
 		}
+
+		Bitmap largeIconBitmap = BitmapFactory.decodeResource(getApplicationContext().getResources(), largeIconResId);
 
 		String eventId = geofencingEvent.getTriggeringGeofences().get(0).getRequestId();
 		int notificationID = Integer.parseInt(eventId);
@@ -119,19 +125,22 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		                                                                 noActionIntent,
 		                                                                 PendingIntent.FLAG_UPDATE_CURRENT);
 
-		Notification notification = new NotificationCompat.Builder(getApplicationContext()).setContentTitle("O2 Touch session nearby!")
-		                                                                                   .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-		                                                                                   .setPriority(NotificationCompat.PRIORITY_HIGH)
-		                                                                                   .setAutoCancel(false)
-		                                                                                   .setContentText("Would you like to check in to this session?")
-		                                                                                   .setSmallIcon(smallIconResId)
-		                                                                                   .setContentIntent(pendingIntent)
-		                                                                                   .addAction(0, "Yes", yesPendingActionIntent)
-		                                                                                   .addAction(0, "No", noPendingActionIntent)
-		                                                                                   .setVibrate(new long[]{0, 300L})
-		                                                                                   .build();
+		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext()).setContentTitle("O2 Touch session nearby!")
+		                                                                                                        .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+		                                                                                                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+		                                                                                                        .setAutoCancel(false)
+		                                                                                                        .setContentText("Would you like to check in to this session?")
+		                                                                                                        .setSmallIcon(smallIconResId)
+		                                                                                                        .setContentIntent(pendingIntent)
+		                                                                                                        .addAction(0, "Yes", yesPendingActionIntent)
+		                                                                                                        .addAction(0, "No", noPendingActionIntent)
+		                                                                                                        .setVibrate(new long[]{0, 300L});
+		if (largeIconResId != 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+		{
+			notificationBuilder.setLargeIcon(largeIconBitmap);
+		}
 
 		NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-		notificationManager.notify("checkInRequest", notificationID, notification);
+		notificationManager.notify("checkInRequest", notificationID, notificationBuilder.build());
 	}
 }
