@@ -52,15 +52,27 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 
 		if (!intent.getBooleanExtra(HEADLESS_KEY, false))
 		{
+			Log.d(TAG, "Received geofencing event, but not sending to JS, creating notification if region is active...");
 			String eventId = geofencingEvent.getTriggeringGeofences().get(0).getRequestId();
 			if (eventId != null)
 			{
+				Log.d(TAG, "Got event Id, now loading persisted data...");
 				PersistableData data = PersistableData.load(getApplicationContext());
 				MonitoredRegion region = data.getRegion(eventId);
+				Log.d(TAG, "Got region: " + region);
 				if (region != null && region.isActive())
 				{
+					Log.d(TAG, "Region is active, show notification!");
 					showNotification(intent, region);
 				}
+				else
+				{
+					Log.d(TAG, "Region is not active");
+				}
+			}
+			else
+			{
+				Log.w(TAG, "No eventId associated with geofencing event...");
 			}
 			return null;
 		}
