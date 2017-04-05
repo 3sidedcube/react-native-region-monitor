@@ -28,6 +28,7 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 	public static final String TAG = "RNRM";
 	public static final String TRANSITION_TASK_NAME = "region-monitor-transition";
 	public static final String REGION_SYNC_TASK_NAME = "region-monitor-sync";
+	private static final long UNSPECIFIED_TIME = -1;
 	private PersistableData data;
 	private GeofenceManager geofenceManager;
 
@@ -42,17 +43,31 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 	public void addCircularRegion(@NonNull ReadableMap location,
 	                              int radiusMetres,
 	                              @NonNull String requestId,
-	                              @Nullable Long startTime,
-	                              @Nullable Long endTime,
+	                              @Nullable Integer startTimeSeconds, // These are passed in as integer seconds as longs can't be passed in from JS
+	                              @Nullable Integer endTimeSeconds,
 	                              @NonNull final Promise promise)
 	{
 		try
 		{
+			Long startTimeMilliseconds = startTimeSeconds != null ? (startTimeSeconds * 1000L) : null;
+			Long endTimeMilliseconds = endTimeSeconds != null ? (endTimeSeconds * 1000L) : null;
+
+			if (endTimeMilliseconds != null && endTimeMilliseconds < System.currentTimeMillis())
+			{
+				promise.resolve(null);
+				return;
+			}
+
 			double latitude = location.getDouble("latitude");
 			double longitude = location.getDouble("longitude");
-			Log.d(TAG, "addCircularRegion: " + requestId + ", " + latitude + ", " + longitude + ", " + radiusMetres + ", " + startTime + ", " + endTime);
+			Log.d(TAG, "addCircularRegion: " + requestId + ", " + latitude + ", " + longitude + ", " + radiusMetres + ", " + startTimeMilliseconds + ", " + endTimeMilliseconds);
 
-			final MonitoredRegion region = new MonitoredRegion(requestId, latitude, longitude, radiusMetres, startTime, endTime);
+			final MonitoredRegion region = new MonitoredRegion(requestId,
+			                                                   latitude,
+			                                                   longitude,
+			                                                   radiusMetres,
+			                                                   startTimeMilliseconds,
+			                                                   endTimeMilliseconds);
 			Geofence geofence = region.createGeofence();
 			geofenceManager.addGeofences(Collections.singletonList(geofence), new ResultCallbacks<Status>()
 			{
