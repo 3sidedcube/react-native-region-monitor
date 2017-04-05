@@ -15,8 +15,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.cube.geofencing.RNRegionMonitorModule.TAG;
 
@@ -71,7 +71,7 @@ public class PersistableData
 	}
 
 	@TaggedFieldSerializer.Tag(1)
-	private Map<String, MonitoredRegion> regions = new HashMap<>();
+	private Map<String, MonitoredRegion> regions = new ConcurrentHashMap<>();
 
 	public void addRegion(@NonNull MonitoredRegion region)
 	{
@@ -81,6 +81,24 @@ public class PersistableData
 	public void clearRegions()
 	{
 		regions.clear();
+	}
+
+	public MonitoredRegion getRegion(String id)
+	{
+		if (id == null)
+		{
+			return null;
+		}
+
+		for (MonitoredRegion region: regions.values())
+		{
+			if (id.equals(region.getId()))
+			{
+				return region;
+			}
+		}
+
+		return null;
 	}
 
 	public Collection<MonitoredRegion> getRegions()
@@ -93,7 +111,7 @@ public class PersistableData
 		regions.remove(id);
 	}
 
-	public void save(@NonNull Context context)
+	public synchronized void save(@NonNull Context context)
 	{
 		Kryo serialiser = createSerialiser();
 

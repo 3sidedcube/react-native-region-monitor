@@ -16,24 +16,36 @@ public class MonitoredRegion
 	private double longitude;
 	@TaggedFieldSerializer.Tag(4)
 	private int radius;
+	@TaggedFieldSerializer.Tag(5)
+	private Long startTime;
+	@TaggedFieldSerializer.Tag(6)
+	private Long endTime;
 
 	public MonitoredRegion()
 	{}
 
 	public MonitoredRegion(String id, double latitude, double longitude, int radius)
 	{
+		this(id, latitude, longitude, radius, null, null);
+	}
+
+	public MonitoredRegion(String id, double latitude, double longitude, int radius, Long startTime, Long endTime)
+	{
 		this.id = id;
 		this.latitude = latitude;
 		this.longitude = longitude;
 		this.radius = radius;
+		this.startTime = startTime;
+		this.endTime = endTime;
 	}
 
 	public Geofence createGeofence()
 	{
 		return new Geofence.Builder().setRequestId(id)
 		                             .setCircularRegion(latitude, longitude, radius)
-		                             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
-		                             .setExpirationDuration(Geofence.NEVER_EXPIRE)
+		                             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_DWELL | Geofence.GEOFENCE_TRANSITION_EXIT)
+		                             .setLoiteringDelay(60000)
+		                             .setExpirationDuration(endTime != null ? (endTime - System.currentTimeMillis()) : Geofence.NEVER_EXPIRE)
 		                             .build();
 	}
 
@@ -55,5 +67,15 @@ public class MonitoredRegion
 	public int getRadius()
 	{
 		return radius;
+	}
+
+	public boolean isActive()
+	{
+		return isActiveAt(System.currentTimeMillis());
+	}
+
+	public boolean isActiveAt(long time)
+	{
+		return (startTime == null || time >= startTime) && (endTime == null || time < endTime);
 	}
 }

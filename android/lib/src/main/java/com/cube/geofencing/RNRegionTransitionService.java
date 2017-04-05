@@ -11,6 +11,8 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import com.cube.geofencing.model.MonitoredRegion;
+import com.cube.geofencing.model.PersistableData;
 import com.facebook.react.HeadlessJsTaskService;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableArray;
@@ -26,6 +28,10 @@ import static com.cube.geofencing.RNRegionMonitorModule.TAG;
  */
 public class RNRegionTransitionService extends HeadlessJsTaskService
 {
+	public static final String NOTIFICATION_TAG = "transition_notif_tag";
+	public static final String NOTIFICATION_ID_KEY = "notificationId";
+	private static final String HEADLESS_KEY = "launchHeadless";
+
 	@Override
 	@Nullable
 	protected HeadlessJsTaskConfig getTaskConfig(Intent intent)
@@ -37,24 +43,33 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 
 		GeofencingEvent geofencingEvent = GeofencingEvent.fromIntent(intent);
 
-		if (geofencingEvent.hasError())
+		if (geofencingEvent.hasError() || geofencingEvent.getTriggeringGeofences() == null || geofencingEvent.getTriggeringGeofences().isEmpty())
 		{
 			// Suppress geofencing event with error
-			Log.d(TAG, "Suppress geocoding event with error");
+			Log.w(TAG, "Suppress geofencing event with error");
 			return null;
 		}
 
-		if (!intent.getBooleanExtra("launchHeadless", false))
+		if (!intent.getBooleanExtra(HEADLESS_KEY, false))
 		{
-			showNotification(intent, geofencingEvent);
+			String eventId = geofencingEvent.getTriggeringGeofences().get(0).getRequestId();
+			if (eventId != null)
+			{
+				PersistableData data = PersistableData.load(getApplicationContext());
+				MonitoredRegion region = data.getRegion(eventId);
+				if (region != null && region.isActive())
+				{
+					showNotification(intent, region);
+				}
+			}
 			return null;
 		}
 
 		NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-		int notificationId = intent.getIntExtra("notificationId", 0);
+		int notificationId = intent.getIntExtra(NOTIFICATION_ID_KEY, 0);
 		if (notificationId != 0)
 		{
-			notificationManager.cancel("checkInRequest", notificationId);
+			notificationManager.cancel(NOTIFICATION_TAG, notificationId);
 		}
 
 		WritableMap location = Arguments.createMap();
@@ -82,7 +97,7 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		return new HeadlessJsTaskConfig(RNRegionMonitorModule.TRANSITION_TASK_NAME, jsArgs, 0, true);
 	}
 
-	private void showNotification(Intent intent, GeofencingEvent geofencingEvent)
+	private void showNotification(Intent intent, MonitoredRegion region)
 	{
 
 		String packageName = getApplicationContext().getPackageName();
@@ -101,30 +116,38 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 
 		Bitmap largeIconBitmap = BitmapFactory.decodeResource(getApplicationContext().getResources(), largeIconResId);
 
-		String eventId = geofencingEvent.getTriggeringGeofences().get(0).getRequestId();
-		int notificationID = Integer.parseInt(eventId);
+		int notificationID = (int)System.currentTimeMillis();
+		try
+		{
+			notificationID = Integer.parseInt(region.getId());
+		}
+		catch (Exception ex)
+		{
+			// ignore
+		}
 
 		Intent notificationIntent = new Intent(getApplicationContext(), RNRegionTransitionService.class);
 		notificationIntent.putExtras(intent);
-		notificationIntent.putExtra("launchHeadless", true);
+		notificationIntent.putExtra(HEADLESS_KEY, true);
 		PendingIntent pendingIntent = PendingIntent.getService(getApplicationContext(), notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 		Intent yesActionIntent = new Intent(getApplicationContext(), RNRegionTransitionService.class);
 		yesActionIntent.putExtras(intent);
-		yesActionIntent.putExtra("launchHeadless", true);
-		yesActionIntent.putExtra("notificationId", notificationID);
+		yesActionIntent.putExtra(HEADLESS_KEY, true);
+		yesActionIntent.putExtra(NOTIFICATION_ID_KEY, notificationID);
 		PendingIntent yesPendingActionIntent = PendingIntent.getService(getApplicationContext(),
 		                                                                notificationID,
 		                                                                yesActionIntent,
 		                                                                PendingIntent.FLAG_UPDATE_CURRENT);
 
 		Intent noActionIntent = new Intent(getApplicationContext(), NotificationCancelReceiver.class);
-		noActionIntent.putExtra("notificationId", notificationID);
+		noActionIntent.putExtra(NOTIFICATION_ID_KEY, notificationID);
 		PendingIntent noPendingActionIntent = PendingIntent.getBroadcast(getApplicationContext(),
 		                                                                 notificationID,
 		                                                                 noActionIntent,
 		                                                                 PendingIntent.FLAG_UPDATE_CURRENT);
 
+		// TODO: Don't hardcode these strings
 		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext()).setContentTitle("O2 Touch session nearby!")
 		                                                                                                        .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
 		                                                                                                        .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -141,6 +164,6 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		}
 
 		NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-		notificationManager.notify("checkInRequest", notificationID, notificationBuilder.build());
+		notificationManager.notify(NOTIFICATION_TAG, notificationID, notificationBuilder.build());
 	}
 }

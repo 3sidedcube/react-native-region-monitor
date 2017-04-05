@@ -28,7 +28,6 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 	public static final String TAG = "RNRM";
 	public static final String TRANSITION_TASK_NAME = "region-monitor-transition";
 	public static final String REGION_SYNC_TASK_NAME = "region-monitor-sync";
-
 	private PersistableData data;
 	private GeofenceManager geofenceManager;
 
@@ -40,15 +39,20 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 	}
 
 	@ReactMethod
-	public void addCircularRegion(@NonNull ReadableMap location, int radiusMetres, @NonNull String requestId, @NonNull final Promise promise)
+	public void addCircularRegion(@NonNull ReadableMap location,
+	                              int radiusMetres,
+	                              @NonNull String requestId,
+	                              @Nullable Long startTime,
+	                              @Nullable Long endTime,
+	                              @NonNull final Promise promise)
 	{
 		try
 		{
 			double latitude = location.getDouble("latitude");
 			double longitude = location.getDouble("longitude");
-			Log.d(TAG, "addCircularRegion: " + requestId + ", " + latitude + ", " + longitude + ", " + radiusMetres);
+			Log.d(TAG, "addCircularRegion: " + requestId + ", " + latitude + ", " + longitude + ", " + radiusMetres + ", " + startTime + ", " + endTime);
 
-			final MonitoredRegion region = new MonitoredRegion(requestId, latitude, longitude, radiusMetres);
+			final MonitoredRegion region = new MonitoredRegion(requestId, latitude, longitude, radiusMetres, startTime, endTime);
 			Geofence geofence = region.createGeofence();
 			geofenceManager.addGeofences(Collections.singletonList(geofence), new ResultCallbacks<Status>()
 			{

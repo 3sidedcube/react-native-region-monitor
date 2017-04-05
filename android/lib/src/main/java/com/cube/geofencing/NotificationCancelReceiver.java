@@ -18,10 +18,10 @@ public class NotificationCancelReceiver extends BroadcastReceiver
 		Log.d("RNRM", "NotificationCancelReceiver " + intent.getExtras());
 
 		NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-		int notificationId = intent.getIntExtra("notificationId", 0);
+		int notificationId = intent.getIntExtra(RNRegionTransitionService.NOTIFICATION_ID_KEY, 0);
 		if (notificationId != 0)
 		{
-			notificationManager.cancel("checkInRequest", notificationId);
+			notificationManager.cancel(RNRegionTransitionService.NOTIFICATION_TAG, notificationId);
 		}
 	}
 }
