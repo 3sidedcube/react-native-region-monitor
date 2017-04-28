@@ -162,7 +162,8 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		// TODO: Don't hardcode these strings
 		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext()).setContentTitle("O2 Touch session nearby!")
 		                                                                                                        .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-		                                                                                                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+		                                                                                                        .setPriority(NotificationCompat.PRIORITY_MAX)
+		                                                                                                        .setWhen(0)
 		                                                                                                        .setAutoCancel(false)
 		                                                                                                        .setContentText("Would you like to check in to this session?")
 		                                                                                                        .setSmallIcon(smallIconResId)
