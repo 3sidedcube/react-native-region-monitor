@@ -5,12 +5,22 @@
 
 NSString* INVRegionMonitorDidChangeRegionEvent = @"INVRegionMonitorDidChangeRegionEvent";
 NSString* INVRegionMonitorErrorDomain = @"INVRegionMonitorErrorDomain";
+NSString* INVRegionMonitorInitialTriggerDwell = @"INVRegionMonitorInitialTriggerDwell";
+NSString* INVRegionMonitorInitialTriggerEnter = @"INVRegionMonitorInitialTriggerEnter";
+NSString* INVRegionMonitorInitialTriggerExit = @"INVRegionMonitorInitialTriggerExit";
+
+@interface INVRegionMonitor()
+
+@property (nonatomic, strong) NSMutableArray <NSString *> *initialEntryRegionIdentifiers;
+@property (nonatomic, strong) NSMutableArray <NSString *> *initialExitRegionIdentifiers;
+@property (nonatomic, strong) NSMutableArray <NSString *> *initialStatusRegionIdentifiers;
+
+@end
 
 @implementation INVRegionMonitor
 
 @synthesize locationManager;
 @synthesize pendingRegions;
-@synthesize unknownRegions;
 @synthesize pendingAuthorizations;
 @synthesize isRequestingAuthorization;
 @synthesize isQueueingEvents;
@@ -36,6 +46,11 @@ RCT_EXPORT_MODULE()
 {
     return @{
         @"regionMonitorDidChangeRegion": INVRegionMonitorDidChangeRegionEvent,
+        @"regionMonitorInitialTrigger": @{
+                @"dwell": INVRegionMonitorInitialTriggerDwell,
+                @"enter": INVRegionMonitorInitialTriggerEnter,
+                @"exit": INVRegionMonitorInitialTriggerExit
+        }
     };
 }
 
@@ -50,9 +65,12 @@ RCT_EXPORT_MODULE()
         queuedRegionEvents = [[NSMutableArray alloc] init];
 
         pendingRegions = [[NSMutableDictionary alloc] init];
-        unknownRegions = [[NSMutableDictionary alloc] init];
         pendingAuthorizations = [[NSMutableArray alloc] init];
         isRequestingAuthorization = NO;
+        
+        self.initialExitRegionIdentifiers = [NSMutableArray new];
+        self.initialEntryRegionIdentifiers = [NSMutableArray new];
+        self.initialStatusRegionIdentifiers = [NSMutableArray new];
     }
 
     return self;
@@ -110,10 +128,10 @@ RCT_EXPORT_MODULE()
     }
 }
 
-
 - (void)_addCircularRegion:(NSDictionary *)center
                     radius:(CLLocationDistance)radius
-                identifier:(NSString *)identifier {
+                identifier:(NSString *)identifier
+            initialTrigger:(NSString *)initialTrigger {
     CLLocationCoordinate2D coordinate;
     coordinate.latitude = [center[@"latitude"] doubleValue];
     coordinate.longitude = [center[@"longitude"] doubleValue];
@@ -125,6 +143,21 @@ RCT_EXPORT_MODULE()
                                    radius:MIN(locationManager.maximumRegionMonitoringDistance, radius)
                                    identifier:identifier];
     [locationManager startMonitoringForRegion:region];
+    
+    if (initialTrigger == nil) {
+        return;
+    }
+    
+    if ([initialTrigger isEqualToString:INVRegionMonitorInitialTriggerEnter] || [initialTrigger isEqualToString:INVRegionMonitorInitialTriggerDwell]) {
+        
+        [self.initialStatusRegionIdentifiers addObject:identifier];
+        [self.initialEntryRegionIdentifiers addObject:identifier];
+        
+    } else if ([initialTrigger isEqualToString:INVRegionMonitorInitialTriggerExit]) {
+        
+        [self.initialStatusRegionIdentifiers addObject:identifier];
+        [self.initialExitRegionIdentifiers addObject:identifier];
+    }
 }
 
 - (BOOL)_isRegionMonitoringPossible:(CLAuthorizationStatus)status {
@@ -167,6 +200,7 @@ RCT_EXPORT_MODULE()
 RCT_EXPORT_METHOD(addCircularRegion:(nonnull NSDictionary *)center
                              radius:(CLLocationDistance)radius
                          identifier:(nonnull NSString *)identifier
+                    initialTrigger:(nullable NSString *)initialTrigger
                           resolver:(RCTPromiseResolveBlock)resolve
                           rejecter:(RCTPromiseRejectBlock)reject) {
     CLAuthorizationStatus status = [CLLocationManager authorizationStatus];
@@ -189,13 +223,19 @@ RCT_EXPORT_METHOD(addCircularRegion:(nonnull NSDictionary *)center
         reject(@"region_already_exists", @"Adding region failed because a region with the same idenitifier already exists.", error);
         return;
     }
-
-    pendingRegions[identifier] = @{
+    
+    NSMutableDictionary *region = [[NSMutableDictionary alloc] initWithDictionary:@{
         @"center": center,
         @"radius": @(radius),
         @"resolve": resolve,
         @"reject": reject,
-    };
+    }];
+    
+    if (initialTrigger) {
+        region[@"initialTrigger"] = initialTrigger;
+    }
+
+    pendingRegions[identifier] = initialTrigger;
 
     RCTLogInfo(@"Checking status %d", status);
 
@@ -213,7 +253,7 @@ RCT_EXPORT_METHOD(addCircularRegion:(nonnull NSDictionary *)center
         return;
     }
 
-    [self _addCircularRegion:center radius:radius identifier:identifier];
+    [self _addCircularRegion:center radius:radius identifier:identifier initialTrigger:initialTrigger];
 }
 
 RCT_EXPORT_METHOD(clearRegions:(RCTPromiseResolveBlock)resolve
@@ -291,7 +331,7 @@ RCT_EXPORT_METHOD(requestAuthorization:(RCTPromiseResolveBlock)resolve
 - (void) locationManager:(CLLocationManager *)locationManager
        didDetermineState:(CLRegionState)state
                forRegion:(CLRegion *)region {
-    RCTLogInfo(@"locationManager:didDetermineState:forRegion: %d %@", state, region.identifier);
+    RCTLogInfo(@"locationManager:didDetermineState:forRegion: %ld %@", (long)state, region.identifier);
     RCTLogInfo(@"Monitored regions %@", locationManager.monitoredRegions);
 
     if (state == CLRegionStateUnknown) {
@@ -300,24 +340,31 @@ RCT_EXPORT_METHOD(requestAuthorization:(RCTPromiseResolveBlock)resolve
         [locationManager requestStateForRegion:region];
     }
     else {
-        BOOL isUnknownRegion = unknownRegions[region.identifier];
+        
         BOOL didEnter = NO;
         BOOL didExit = NO;
 
         if (state == CLRegionStateOutside) {
-            // If this is an unknown region (a region we just added) we don't want to send an exit event.
-            didExit = !isUnknownRegion;
+            didExit = true;
         }
         else if (state == CLRegionStateInside) {
-            didEnter = YES;
+            didEnter = true;
+        }
+        
+        // If we're requesting the initial state for this region
+        if ([self.initialStatusRegionIdentifiers containsObject:region.identifier]) {
+            
+            // Only send didEnter or didExit if we've requested them as initial notifications
+            didEnter = didEnter && [self.initialEntryRegionIdentifiers containsObject: region.identifier];
+            didExit = didExit && [self.initialExitRegionIdentifiers containsObject: region.identifier];
+            
+            [self.initialStatusRegionIdentifiers removeObject:region.identifier];
+            [self.initialEntryRegionIdentifiers removeObject:region.identifier];
+            [self.initialExitRegionIdentifiers removeObject:region.identifier];
         }
 
         if (didExit || didEnter) {
             [self _sendRegionChangeEventWithIdentifier:region.identifier didEnter:didEnter didExit:didExit];
-        }
-
-        if (isUnknownRegion) {
-            [unknownRegions removeObjectForKey:region.identifier];
         }
     }
 
@@ -330,13 +377,17 @@ RCT_EXPORT_METHOD(requestAuthorization:(RCTPromiseResolveBlock)resolve
 
     if (status == kCLAuthorizationStatusAuthorizedAlways ||
         status == kCLAuthorizationStatusAuthorized) {
+        
         if (pendingRegions.count > 0) {
+            
             for (NSString *identifier in pendingRegions.keyEnumerator) {
+                
                 NSDictionary *pendingRegion = pendingRegions[identifier];
                 NSDictionary *center = pendingRegion[@"center"];
                 NSNumber *radius = pendingRegion[@"radius"];
+                NSString *initialTrigger = pendingRegion[@"initialTrigger"];
 
-                [self _addCircularRegion:center radius:radius.doubleValue identifier:identifier];
+                [self _addCircularRegion:center radius:radius.doubleValue identifier:identifier initialTrigger:initialTrigger];
             }
 
             // We shouldn't remove the pending regions as they are resolved or rejected after they
@@ -377,13 +428,17 @@ monitoringDidFailForRegion:(CLRegion *)region
         reject(@"monitoring_failed", @"Failed to start region monitoring.", error);
 
         [pendingRegions removeObjectForKey:identifier];
+        
+        [self.initialStatusRegionIdentifiers removeObject:identifier];
+        [self.initialEntryRegionIdentifiers removeObject:identifier];
+        [self.initialExitRegionIdentifiers removeObject:identifier];
     }
 }
 
 - (void)locationManager:(CLLocationManager *)manager
 didStartMonitoringForRegion:(CLRegion *)region {
     RCTLogInfo(@"didStartMonitoringForRegion %@!", region.identifier);
-
+    
     NSString *identifier = region.identifier;
     NSDictionary *pendingRegion = pendingRegions[identifier];
 
@@ -395,12 +450,12 @@ didStartMonitoringForRegion:(CLRegion *)region {
 
         RCTLogInfo(@"Check the state of the region... %@", region);
 
-        unknownRegions[identifier] = @YES;
-
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            // We request the state so we can immediatelly emit an event if we're already inside this region.
-            [locationManager requestStateForRegion:region];
-        });
+        if ([self.initialStatusRegionIdentifiers containsObject:region.identifier]) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+                // We request the state so we can immediatelly emit an event if we're already inside this region.
+                [locationManager requestStateForRegion:region];
+            });
+        }
     }
 }
 
