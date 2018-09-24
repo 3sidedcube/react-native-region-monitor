@@ -1,8 +1,11 @@
 package com.cube.geofencing;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.util.Log;
-
 import com.cube.geofencing.model.MonitoredRegion;
 import com.cube.geofencing.model.PersistableData;
 import com.facebook.react.bridge.Promise;
@@ -14,11 +17,10 @@ import com.google.android.gms.common.api.ResultCallbacks;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.Geofence;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.annotation.Nullable;
 
 /**
  * Defines the interface available from Javascript in order to manage monitored regions
@@ -28,6 +30,8 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 	public static final String TAG = "RNRM";
 	public static final String TRANSITION_TASK_NAME = "region-monitor-transition";
 	public static final String REGION_SYNC_TASK_NAME = "region-monitor-sync";
+	public static final String NOTIFICATION_CHANNEL_ID = "region-monitor-notification-channel";
+
 	private static final long UNSPECIFIED_TIME = -1;
 	private PersistableData data;
 	private GeofenceManager geofenceManager;
@@ -37,6 +41,16 @@ public class RNRegionMonitorModule extends ReactContextBaseJavaModule
 		super(reactContext);
 		data = PersistableData.load(reactContext);
 		geofenceManager = new GeofenceManager(reactContext);
+
+		// Create notification channel
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+		{
+			NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "O2 Touch Session Check-Ins", NotificationManager.IMPORTANCE_HIGH);
+			channel.setDescription("Notifications to help you check-in when you arrive at your O2 Touch session");
+			channel.enableLights(true);
+			channel.enableVibration(true);
+			((NotificationManager)(reactContext.getSystemService(Context.NOTIFICATION_SERVICE))).createNotificationChannel(channel);
+		}
 	}
 
 	@ReactMethod

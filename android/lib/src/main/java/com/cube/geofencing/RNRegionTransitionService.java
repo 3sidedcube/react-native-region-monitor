@@ -160,17 +160,19 @@ public class RNRegionTransitionService extends HeadlessJsTaskService
 		                                                                 PendingIntent.FLAG_UPDATE_CURRENT);
 
 		// TODO: Don't hardcode these strings
-		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext()).setContentTitle("O2 Touch session nearby!")
-		                                                                                                        .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-		                                                                                                        .setPriority(NotificationCompat.PRIORITY_MAX)
-		                                                                                                        .setWhen(0)
-		                                                                                                        .setAutoCancel(false)
-		                                                                                                        .setContentText("Would you like to check in to this session?")
-		                                                                                                        .setSmallIcon(smallIconResId)
-		                                                                                                        .setContentIntent(pendingIntent)
-		                                                                                                        .addAction(0, "Yes", yesPendingActionIntent)
-		                                                                                                        .addAction(0, "No", noPendingActionIntent)
-		                                                                                                        .setVibrate(new long[]{0, 300L});
+		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), RNRegionMonitorModule.NOTIFICATION_CHANNEL_ID)
+			                                                 .setContentTitle("O2 Touch session nearby!")
+			                                                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+			                                                 .setPriority(NotificationCompat.PRIORITY_MAX)
+			                                                 .setWhen(0)
+			                                                 .setAutoCancel(false)
+			                                                 .setContentText("Would you like to check in to this session?")
+			                                                 .setSmallIcon(smallIconResId)
+			                                                 .setContentIntent(pendingIntent)
+			                                                 .addAction(0, "Yes", yesPendingActionIntent)
+			                                                 .addAction(0, "No", noPendingActionIntent)
+			                                                 .setVibrate(new long[]{0, 300L});
+
 		if (largeIconResId != 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
 		{
 			notificationBuilder.setLargeIcon(largeIconBitmap);
