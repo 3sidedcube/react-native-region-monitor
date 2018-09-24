@@ -8,6 +8,7 @@ export default {
 	clearRegions: INVRegionMonitor.clearRegions,
 	removeCircularRegion: INVRegionMonitor.removeCircularRegion,
 	requestAuthorization: INVRegionMonitor.requestAuthorization,
+	InitialTrigger: INVRegionMonitor.regionMonitorInitialTrigger,
 	onRegionChange: (callback) => {
 		const subscription = RegionMonitorEventEmitter.addListener(INVRegionMonitor.regionMonitorDidChangeRegion, callback);
 
