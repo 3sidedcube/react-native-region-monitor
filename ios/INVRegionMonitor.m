@@ -235,7 +235,7 @@ RCT_EXPORT_METHOD(addCircularRegion:(nonnull NSDictionary *)center
         region[@"initialTrigger"] = initialTrigger;
     }
 
-    pendingRegions[identifier] = initialTrigger;
+    pendingRegions[identifier] = region;
 
     RCTLogInfo(@"Checking status %d", status);
 
